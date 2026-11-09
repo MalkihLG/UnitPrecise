@@ -1,0 +1,139 @@
+/* ==============================================================
+   1. TOKENS Y VARIABLES DE DISEÑO (Gestión de Temas Dinámicos)
+   ============================================================== */
+/* MODO CLARO (Por defecto) */
+:root {
+    --background: #ffffff;
+    --foreground: oklch(0.145 0 0);
+    --primary: #030213;
+    --ring: oklch(0.708 0 0);
+    --radius: 0.625rem;
+    --bg-main: #f7f9fb;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --accent: #0ea5e9;
+    --input-bg: #f2f4f6;
+}
+/* MODO OSCURO */
+html.dark {
+    --bg-main: #121212;
+    --bg-card: #1e1e1e;
+    --text-main: #e0e0e0;
+    --text-muted: #a0a0a0;
+    --border-color: #333333;
+    --accent: #38bdf8;
+    --input-bg: #2c2c2c;
+}
+/* ==============================================================
+   2. ESTILOS BASE Y TRANSICIONES
+   ============================================================== */
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+body, div, header, main, input, select, button, span, p, h1, h2, h3 {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+/* ==============================================================
+   3. CONTROL DE VISTAS SPA
+   ============================================================== */
+.view-section {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+.view-section.active {
+    display: block;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+/* ==============================================================
+   4. SCROLLBAR PERSONALIZADO
+   ============================================================== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ==============================================================
+   5. MÓDULO EDUCATIVO (Memoria de Cálculo, Quiz y Curiosidades)
+   ============================================================== */
+/* Tarjetas desplegables (<details>) */
+details.calc-card > summary {
+    list-style: none;
+    cursor: pointer;
+}
+details.calc-card > summary::-webkit-details-marker {
+    display: none;
+}
+details.calc-card > summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+}
+.calc-chevron {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+details.calc-card[open] > summary .calc-chevron {
+    transform: rotate(180deg);
+}
+/* Número de cada paso del procedimiento */
+.calc-step-num {
+    flex-shrink: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background: var(--accent);
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 0.125rem;
+}
+html.dark .calc-step-num {
+    color: #0b1220;
+}
+/* Caja de fórmulas (monoespaciada, hereda los tokens de tema) */
+.formula-box {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    color: var(--text-main);
+    overflow-x: auto;
+    word-break: break-word;
+}
+.formula-box.formula-result {
+    border-color: var(--accent);
+    font-weight: 700;
+    color: var(--accent);
+}
+/* Cambio de dato en el tarjetero de curiosidades */
+.fact-fade {
+    animation: fadeIn 0.4s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+    .view-section,
+    .fact-fade {
+        animation: none;
+    }
+}
+
