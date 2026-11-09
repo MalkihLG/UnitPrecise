@@ -1,0 +1,83 @@
+/* ==============================================================
+   1. TOKENS Y VARIABLES DE DISEÑO (Gestión de Temas Dinámicos)
+   ============================================================== */
+
+/* MODO CLARO (Por defecto) */
+:root {
+    --background: #ffffff;
+    --foreground: oklch(0.145 0 0);
+    --primary: #030213;
+    --ring: oklch(0.708 0 0);
+    --radius: 0.625rem;
+
+    --bg-main: #f7f9fb;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --accent: #0ea5e9;
+    --input-bg: #f2f4f6;
+}
+
+/* MODO OSCURO */
+html.dark {
+    --bg-main: #121212;
+    --bg-card: #1e1e1e;
+    --text-main: #e0e0e0;
+    --text-muted: #a0a0a0;
+    --border-color: #333333;
+    --accent: #38bdf8;
+    --input-bg: #2c2c2c;
+}
+
+/* ==============================================================
+   2. ESTILOS BASE Y TRANSICIONES
+   ============================================================== */
+
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+body, div, header, main, input, select, button, span, p, h1, h2, h3 {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ==============================================================
+   3. CONTROL DE VISTAS SPA
+   ============================================================== */
+
+.view-section {
+    display: none;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.view-section.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==============================================================
+   4. SCROLLBAR PERSONALIZADO
+   ============================================================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}

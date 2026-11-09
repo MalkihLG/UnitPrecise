@@ -1,0 +1,587 @@
+import { useState, useEffect } from 'react';
+import svgPaths from '../imports/Html→Body/svg-scziwvjrjo';
+
+type View = 'converter' | 'categories' | 'settings';
+type Category = 'longitud' | 'masa' | 'temperatura' | 'velocidad' | 'tiempo' | 'volumen' | 'area' | 'energia' | 'potencia' | 'datos' | 'presion';
+
+interface ConversionUnit {
+  name: string;
+  toBase: (value: number) => number;
+  fromBase: (value: number) => number;
+}
+
+interface ConversionHistory {
+  category: string;
+  from: string;
+  to: string;
+  inputValue: number;
+  outputValue: number;
+  timestamp: Date;
+}
+
+const conversions: Record<Category, Record<string, ConversionUnit>> = {
+  longitud: {
+    metros: { name: 'Metros (m)', toBase: (v) => v, fromBase: (v) => v },
+    kilometros: { name: 'Kilómetros (km)', toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
+    pies: { name: 'Pies (ft)', toBase: (v) => v * 0.3048, fromBase: (v) => v / 0.3048 },
+    millas: { name: 'Millas (mi)', toBase: (v) => v * 1609.34, fromBase: (v) => v / 1609.34 },
+    centimetros: { name: 'Centímetros (cm)', toBase: (v) => v / 100, fromBase: (v) => v * 100 },
+  },
+  masa: {
+    kilogramos: { name: 'Kilogramos (kg)', toBase: (v) => v, fromBase: (v) => v },
+    gramos: { name: 'Gramos (g)', toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
+    libras: { name: 'Libras (lbs)', toBase: (v) => v * 0.453592, fromBase: (v) => v / 0.453592 },
+    onzas: { name: 'Onzas (oz)', toBase: (v) => v * 0.0283495, fromBase: (v) => v / 0.0283495 },
+    toneladas: { name: 'Toneladas (t)', toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
+  },
+  temperatura: {
+    celsius: { name: 'Celsius (°C)', toBase: (v) => v, fromBase: (v) => v },
+    fahrenheit: { name: 'Fahrenheit (°F)', toBase: (v) => (v - 32) * 5/9, fromBase: (v) => v * 9/5 + 32 },
+    kelvin: { name: 'Kelvin (K)', toBase: (v) => v - 273.15, fromBase: (v) => v + 273.15 },
+  },
+  velocidad: {
+    kmh: { name: 'km/h', toBase: (v) => v, fromBase: (v) => v },
+    mph: { name: 'mph', toBase: (v) => v * 1.60934, fromBase: (v) => v / 1.60934 },
+    ms: { name: 'm/s', toBase: (v) => v * 3.6, fromBase: (v) => v / 3.6 },
+  },
+  tiempo: {
+    segundos: { name: 'Segundos (s)', toBase: (v) => v, fromBase: (v) => v },
+    minutos: { name: 'Minutos (min)', toBase: (v) => v * 60, fromBase: (v) => v / 60 },
+    horas: { name: 'Horas (h)', toBase: (v) => v * 3600, fromBase: (v) => v / 3600 },
+    dias: { name: 'Días', toBase: (v) => v * 86400, fromBase: (v) => v / 86400 },
+  },
+  volumen: {
+    litros: { name: 'Litros (L)', toBase: (v) => v, fromBase: (v) => v },
+    mililitros: { name: 'Mililitros (mL)', toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
+    galones: { name: 'Galones (gal)', toBase: (v) => v * 3.78541, fromBase: (v) => v / 3.78541 },
+  },
+  area: {
+    metros2: { name: 'Metros² (m²)', toBase: (v) => v, fromBase: (v) => v },
+    kilometros2: { name: 'Kilómetros² (km²)', toBase: (v) => v * 1000000, fromBase: (v) => v / 1000000 },
+    hectareas: { name: 'Hectáreas (ha)', toBase: (v) => v * 10000, fromBase: (v) => v / 10000 },
+    pies2: { name: 'Pies² (ft²)', toBase: (v) => v * 0.092903, fromBase: (v) => v / 0.092903 },
+  },
+  energia: {
+    julios: { name: 'Julios (J)', toBase: (v) => v, fromBase: (v) => v },
+    calorias: { name: 'Calorías (cal)', toBase: (v) => v * 4.184, fromBase: (v) => v / 4.184 },
+    kwh: { name: 'Kilovatios-hora (kWh)', toBase: (v) => v * 3600000, fromBase: (v) => v / 3600000 },
+  },
+  potencia: {
+    vatios: { name: 'Vatios (W)', toBase: (v) => v, fromBase: (v) => v },
+    kilovatios: { name: 'Kilovatios (kW)', toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
+    hp: { name: 'Caballos de fuerza (HP)', toBase: (v) => v * 745.7, fromBase: (v) => v / 745.7 },
+  },
+  datos: {
+    bytes: { name: 'Bytes (B)', toBase: (v) => v, fromBase: (v) => v },
+    kilobytes: { name: 'Kilobytes (KB)', toBase: (v) => v * 1024, fromBase: (v) => v / 1024 },
+    megabytes: { name: 'Megabytes (MB)', toBase: (v) => v * 1048576, fromBase: (v) => v / 1048576 },
+    gigabytes: { name: 'Gigabytes (GB)', toBase: (v) => v * 1073741824, fromBase: (v) => v / 1073741824 },
+  },
+  presion: {
+    pascales: { name: 'Pascales (Pa)', toBase: (v) => v, fromBase: (v) => v },
+    atmosferas: { name: 'Atmósferas (atm)', toBase: (v) => v * 101325, fromBase: (v) => v / 101325 },
+    psi: { name: 'PSI', toBase: (v) => v * 6894.76, fromBase: (v) => v / 6894.76 },
+  },
+};
+
+export default function App() {
+  const [currentView, setCurrentView] = useState<View>('converter');
+  const [category, setCategory] = useState<Category>('longitud');
+  const [inputValue, setInputValue] = useState<string>('125.45');
+  const [fromUnit, setFromUnit] = useState<string>('metros');
+  const [toUnit, setToUnit] = useState<string>('pies');
+  const [result, setResult] = useState<number>(0);
+  const [history, setHistory] = useState<ConversionHistory[]>([]);
+
+  useEffect(() => {
+    const units = Object.keys(conversions[category]);
+    setFromUnit(units[0]);
+    setToUnit(units[1] || units[0]);
+  }, [category]);
+
+  useEffect(() => {
+    calculateResult();
+  }, [inputValue, fromUnit, toUnit, category]);
+
+  const calculateResult = () => {
+    const value = parseFloat(inputValue);
+    if (isNaN(value)) {
+      setResult(0);
+      return;
+    }
+
+    const fromUnitData = conversions[category][fromUnit];
+    const toUnitData = conversions[category][toUnit];
+
+    if (!fromUnitData || !toUnitData) return;
+
+    const baseValue = fromUnitData.toBase(value);
+    const convertedValue = toUnitData.fromBase(baseValue);
+    setResult(convertedValue);
+  };
+
+  const handleConvert = () => {
+    const value = parseFloat(inputValue);
+    if (isNaN(value)) return;
+
+    const newHistory: ConversionHistory = {
+      category: category.toUpperCase(),
+      from: conversions[category][fromUnit].name,
+      to: conversions[category][toUnit].name,
+      inputValue: value,
+      outputValue: result,
+      timestamp: new Date(),
+    };
+
+    setHistory([newHistory, ...history.slice(0, 2)]);
+  };
+
+  const swapUnits = () => {
+    setFromUnit(toUnit);
+    setToUnit(fromUnit);
+  };
+
+  const getTimeAgo = (date: Date) => {
+    const minutes = Math.floor((new Date().getTime() - date.getTime()) / 60000);
+    if (minutes < 60) return `Hace ${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    return `Hace ${hours}h`;
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-r from-[#f7f9fb] to-white">
+      {/* Header */}
+      <div className="bg-white border-b border-[#e2e8f0] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold text-[#0f172a]">UnitPrecise</h1>
+            <nav className="flex gap-8">
+              <button
+                onClick={() => setCurrentView('converter')}
+                className={`text-sm font-semibold pb-1 ${
+                  currentView === 'converter'
+                    ? 'text-[#0ea5e9] border-b-2 border-[#0ea5e9]'
+                    : 'text-[#64748b] hover:text-[#0f172a]'
+                }`}
+              >
+                Conversor
+              </button>
+              <button
+                onClick={() => setCurrentView('categories')}
+                className={`text-sm font-semibold pb-1 ${
+                  currentView === 'categories'
+                    ? 'text-[#0ea5e9] border-b-2 border-[#0ea5e9]'
+                    : 'text-[#64748b] hover:text-[#0f172a]'
+                }`}
+              >
+                Categorías
+              </button>
+              <button
+                onClick={() => setCurrentView('settings')}
+                className={`text-sm font-semibold pb-1 ${
+                  currentView === 'settings'
+                    ? 'text-[#0ea5e9] border-b-2 border-[#0ea5e9]'
+                    : 'text-[#64748b] hover:text-[#0f172a]'
+                }`}
+              >
+                Ajustes
+              </button>
+            </nav>
+            <div className="w-8 h-8 rounded-full bg-gray-200"></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      {currentView === 'converter' && (
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          {/* Botones de Categoría */}
+          <div className="flex gap-3 mb-8 flex-wrap">
+            <button
+              onClick={() => setCategory('longitud')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                category === 'longitud' ? 'bg-[#40c2fd] text-[#004d6a]' : 'bg-white text-[#45464d] border border-[#c6c6cd]'
+              }`}
+            >
+              <svg className="w-3 h-2" fill="currentColor" viewBox="0 0 11.6667 7">
+                <path d={svgPaths.p2fbd5280} />
+              </svg>
+              <span className="text-sm">Longitud</span>
+            </button>
+
+            <button
+              onClick={() => setCategory('masa')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                category === 'masa' ? 'bg-[#40c2fd] text-[#004d6a]' : 'bg-white text-[#45464d] border border-[#c6c6cd]'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 11.55 11.55">
+                <path d={svgPaths.p1be67400} />
+              </svg>
+              <span className="text-sm">Masa</span>
+            </button>
+
+            <button
+              onClick={() => setCategory('temperatura')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                category === 'temperatura' ? 'bg-[#40c2fd] text-[#004d6a]' : 'bg-white text-[#45464d] border border-[#c6c6cd]'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 10.5 10.5">
+                <path d={svgPaths.p3b856440} />
+              </svg>
+              <span className="text-sm">Temperatura</span>
+            </button>
+
+            <button
+              onClick={() => setCategory('velocidad')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                category === 'velocidad' ? 'bg-[#40c2fd] text-[#004d6a]' : 'bg-white text-[#45464d] border border-[#c6c6cd]'
+              }`}
+            >
+              <svg className="w-3 h-2" fill="currentColor" viewBox="0 0 11.6676 9.33333">
+                <path d={svgPaths.p1cccc530} />
+              </svg>
+              <span className="text-sm">Velocidad</span>
+            </button>
+
+            <button
+              onClick={() => setCategory('tiempo')}
+              className={`flex items-center gap-2 px-4 py-2 rounded ${
+                category === 'tiempo' ? 'bg-[#40c2fd] text-[#004d6a]' : 'bg-white text-[#45464d] border border-[#c6c6cd]'
+              }`}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 11.6667 11.6667">
+                <path d={svgPaths.p29478120} />
+              </svg>
+              <span className="text-sm">Tiempo</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('categories')}
+              className="flex items-center gap-2 px-4 py-2 rounded bg-white text-[#45464d] border border-[#c6c6cd]"
+            >
+              <svg className="w-3 h-2" fill="currentColor" viewBox="0 0 9.33333 2.33333">
+                <path d={svgPaths.p30335600} />
+              </svg>
+              <span className="text-sm">Más</span>
+            </button>
+          </div>
+
+          {/* Panel Principal */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
+            {/* Panel de Entrada */}
+            <div className="lg:col-span-7 bg-white border border-[#c6c6cd] rounded-lg p-6 shadow-sm">
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-base">Conversor de {category.charAt(0).toUpperCase() + category.slice(1)}</h2>
+                  <span className="bg-[#eceef0] px-2 py-1 rounded text-xs text-[#76777d]">PRECISIÓN ALTA</span>
+                </div>
+
+                {/* Entrada */}
+                <div className="mb-4">
+                  <label className="block text-sm text-[#45464d] mb-2">VALOR DE ENTRADA</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      className="w-full bg-[#f2f4f6] border border-[#c6c6cd] rounded px-4 py-8 text-base"
+                      placeholder="0"
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <select
+                        value={fromUnit}
+                        onChange={(e) => setFromUnit(e.target.value)}
+                        className="bg-transparent text-sm text-[#76777d] border-none outline-none"
+                      >
+                        {Object.keys(conversions[category]).map((unit) => (
+                          <option key={unit} value={unit}>
+                            {conversions[category][unit].name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Botón de Intercambio */}
+                <div className="flex justify-center my-4">
+                  <button
+                    onClick={swapUnits}
+                    className="bg-black text-white p-3 rounded-xl shadow-lg border-4 border-white"
+                  >
+                    <svg className="w-4 h-5" fill="white" viewBox="0 0 16 20">
+                      <path d={svgPaths.p821dd00} />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Salida */}
+                <div>
+                  <label className="block text-sm text-[#45464d] mb-2">UNIDAD DE DESTINO</label>
+                  <div className="relative">
+                    <div className="w-full bg-white border border-[#c6c6cd] rounded px-4 py-6 text-base">
+                      {result.toFixed(3)}
+                    </div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <select
+                        value={toUnit}
+                        onChange={(e) => setToUnit(e.target.value)}
+                        className="bg-transparent text-sm text-[#76777d] border-none outline-none"
+                      >
+                        {Object.keys(conversions[category]).map((unit) => (
+                          <option key={unit} value={unit}>
+                            {conversions[category][unit].name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleConvert}
+                className="w-full bg-black text-white py-4 rounded text-sm font-medium"
+              >
+                Calcular Resultado de Precisión
+              </button>
+            </div>
+
+            {/* Panel de Resultado */}
+            <div className="lg:col-span-5 flex flex-col gap-4">
+              {/* Tarjeta de Resultado */}
+              <div className="bg-[#00668a] text-white rounded-lg p-6 shadow-lg min-h-[220px] relative overflow-hidden">
+                <svg className="absolute -right-12 -bottom-12 w-28 h-44 opacity-10" fill="white" viewBox="0 0 110 180">
+                  <path d={svgPaths.p23142000} />
+                </svg>
+
+                <div className="relative z-10">
+                  <div className="mb-4">
+                    <p className="text-sm opacity-80 mb-2">RESULTADO</p>
+                    <p className="text-5xl font-normal leading-tight mb-1">{result.toFixed(3)}</p>
+                    <p className="text-sm opacity-90">{conversions[category][toUnit]?.name}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-8">
+                    <div className="flex gap-2">
+                      <button className="bg-white/20 px-2 py-2 rounded flex items-center gap-2 text-xs">
+                        <svg className="w-3 h-3" fill="white" viewBox="0 0 9.91667 11.6667">
+                          <path d={svgPaths.p29eb9000} />
+                        </svg>
+                        COPIAR
+                      </button>
+                    </div>
+                    <span className="bg-white text-[#00668a] px-2 py-1 rounded text-xs">±0.0001 Precisión</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Ajustes */}
+              <div className="bg-white border border-[#c6c6cd] rounded-lg p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm">Ajustes de Entorno</h3>
+                  <button className="text-[#00668a] text-xs">REINICIAR</button>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-[#45464d]">Precisión Decimal</span>
+                    <span className="bg-[#eceef0] px-2 py-1 rounded text-xs">3 Lugares</span>
+                  </div>
+                  <div className="border-t border-[#eceef0] flex items-center justify-between py-2">
+                    <span className="text-sm text-[#45464d]">Cifras Significativas</span>
+                    <div className="w-5 h-3 bg-[#00668a] rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Historial de Conversiones */}
+          {history.length > 0 && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base">Registro Reciente de Precisión</h2>
+                <button className="flex items-center gap-1 text-[#00668a] text-sm">
+                  VER TODO
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 10.6667 10.6667">
+                    <path d={svgPaths.p2b41a9d0} />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {history.map((item, index) => (
+                  <div key={index} className="bg-white border border-[#c6c6cd] rounded p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-[#76777d] uppercase">{item.category}</span>
+                      <span className="text-xs text-[#76777d]">{getTimeAgo(item.timestamp)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-[#45464d]">{item.inputValue.toFixed(2)}</span>
+                      <svg className="w-2 h-2" fill="#45464d" viewBox="0 0 8 8">
+                        <path d={svgPaths.p20314340} />
+                      </svg>
+                      <span className="text-sm font-bold">{item.outputValue.toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Información */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-[#e6e8ea] border border-[#c6c6cd] rounded-lg p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="bg-[rgba(0,102,138,0.1)] rounded-xl p-3">
+                  <svg className="w-5 h-5" fill="#00668a" viewBox="0 0 20 20">
+                    <path d={svgPaths.p6c8ea80} />
+                  </svg>
+                </div>
+                <h3 className="text-base">Lógica de Conversión</h3>
+              </div>
+              <p className="text-sm text-[#45464d] leading-6">
+                UnitPrecise utiliza un motor de cálculo matricial que tiene en cuenta la desviación estándar y
+                los factores ambientales cuando se habilitan en los ajustes de personalización.
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-b from-transparent to-black/80 rounded-lg p-6 min-h-[256px] flex flex-col justify-end text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-[#00668a] opacity-50"></div>
+              <div className="relative z-10">
+                <h3 className="text-base mb-2">Precisión Estándar ISO</h3>
+                <p className="text-sm opacity-80 leading-6">
+                  Todas las conversiones se verifican según los estándares del Sistema Internacional de Unidades (SI)
+                  con precisión de punto flotante.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentView === 'categories' && (
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-[#0f172a] mb-3">Seleccionar Categoría</h1>
+            <p className="text-[#475569] leading-relaxed">
+              Elija la magnitud física que desea convertir. Nuestra herramienta utiliza estándares
+              internacionales para garantizar la máxima precisión en sus cálculos de ingeniería y análisis.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { name: 'Longitud', icon: svgPaths.p2fbd5280, desc: 'Distancias astronómicas, medidas industriales y escalas microscópicas.', cat: 'longitud' as Category },
+              { name: 'Masa', icon: svgPaths.p1be67400, desc: 'Conversión de gramos, libras, toneladas y unidades de masa atómica.', cat: 'masa' as Category },
+              { name: 'Temperatura', icon: svgPaths.p3b856440, desc: 'Escalas Celsius, Fahrenheit, Kelvin y Rankine para procesos térmicos.', cat: 'temperatura' as Category },
+              { name: 'Velocidad', icon: svgPaths.p1cccc530, desc: 'Nudos, metros por segundo, kilómetros por hora y mach.', cat: 'velocidad' as Category },
+              { name: 'Tiempo', icon: svgPaths.p29478120, desc: 'Segundos, milenios y unidades cronométricas de alta precisión.', cat: 'tiempo' as Category },
+              { name: 'Volumen', icon: svgPaths.p2fbd5280, desc: 'Líquidos, sólidos y capacidad de contenedores métricos e imperiales.', cat: 'volumen' as Category },
+            ].map((item, index) => (
+              <div key={index} className="bg-white border border-[#c6c6cd] rounded-lg p-6 flex flex-col justify-between hover:shadow-lg transition-shadow">
+                <div>
+                  <div className="bg-[#f0f9ff] w-12 h-12 rounded flex items-center justify-center mb-4">
+                    <svg className="w-5 h-5" fill="#0284c7" viewBox="0 0 25 25">
+                      <path d={item.icon} />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-semibold text-[#0f172a] mb-2">{item.name}</h3>
+                  <p className="text-sm text-[#64748b] leading-relaxed mb-6">{item.desc}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setCategory(item.cat);
+                    setCurrentView('converter');
+                  }}
+                  className="border border-[#0ea5e9] text-[#0284c7] py-3 px-4 rounded text-xs font-semibold tracking-wider hover:bg-[#f0f9ff] transition-colors flex items-center justify-center gap-2"
+                >
+                  ABRIR MÓDULO
+                  <svg className="w-2 h-2" fill="currentColor" viewBox="0 0 8 8">
+                    <path d={svgPaths.p20314340} />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {currentView === 'settings' && (
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          <div className="bg-white border border-[#c6c6cd] rounded-lg p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#0f172a]">Preferencias de Entorno</h2>
+              <button className="text-[#00668a] text-sm font-medium">REINICIAR</button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-[#0f172a] mb-4">Apariencia Visual</h3>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="border-2 border-[#cbd5e1] rounded-lg p-4 text-center cursor-pointer hover:border-[#0ea5e9]">
+                    <div className="bg-white h-20 rounded mb-2 border border-gray-200"></div>
+                    <p className="text-sm font-medium">Modo Claro</p>
+                    <p className="text-xs text-gray-500">OFICINA ESTÁNDAR</p>
+                  </div>
+                  <div className="border-2 border-[#0ea5e9] bg-[#f0f9ff] rounded-lg p-4 text-center cursor-pointer">
+                    <div className="bg-gray-900 h-20 rounded mb-2"></div>
+                    <p className="text-sm font-medium text-[#0284c7]">Modo Oscuro</p>
+                    <p className="text-xs text-[#0284c7]">HORA LUNAR</p>
+                  </div>
+                  <div className="border-2 border-[#cbd5e1] rounded-lg p-4 text-center cursor-pointer hover:border-[#0ea5e9]">
+                    <div className="bg-white h-20 rounded mb-2 border-2 border-gray-900"></div>
+                    <p className="text-sm font-medium">Alto Contraste</p>
+                    <p className="text-xs text-gray-500">INDUSTRIAL</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-[#e2e8f0] pt-6">
+                <h3 className="text-lg font-semibold text-[#0f172a] mb-4">Sistema de Unidades</h3>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="w-5 h-5 rounded-full border-2 border-[#0ea5e9] bg-[#0ea5e9] flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    </div>
+                    <span className="text-sm">Sistema Métrico (m, kg, Celsius)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                    <span className="text-sm">Sistema Imperial (ft, lb, Fahrenheit)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t border-[#e2e8f0] pt-6">
+                <h3 className="text-lg font-semibold text-[#0f172a] mb-4">Calibración de Precisión</h3>
+                <p className="text-sm text-[#64748b] mb-4">
+                  Establezca el número predeterminado de decimales para cálculos científicos.
+                </p>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-medium">0.0000</span>
+                  <input type="range" min="0" max="10" defaultValue="4" className="flex-1" />
+                  <div className="flex gap-2">
+                    <button className="border border-gray-300 rounded px-3 py-1 text-sm">-</button>
+                    <button className="border border-gray-300 rounded px-3 py-1 text-sm">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button className="px-6 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50">
+                  Restaurar Valores
+                </button>
+                <button className="px-6 py-2 bg-black text-white rounded text-sm font-medium hover:bg-gray-800">
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
