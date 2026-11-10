@@ -405,10 +405,30 @@ function analyzeUnit(unit) {
 
 // Fórmulas especiales de temperatura (la unidad base es °C)
 const TEMP_RULES = {
-    celsius:    { toRule: '°C = °C (sin cambio)',        toSub: x => x.replace(/^\((.*)\)$/, '$1'), fromRule: '°C = °C (sin cambio)', fromSub: c => c.replace(/^\((.*)\)$/, '$1') },
-    fahrenheit: { toRule: '°C = (°F − 32) × 5/9',        toSub: x => `(${x} − 32) × 5/9`,          fromRule: '°F = °C × 9/5 + 32',   fromSub: c => `${c} × 9/5 + 32` },
-    kelvin:     { toRule: '°C = K − 273.15',             toSub: x => `${x} − 273.15`,              fromRule: 'K = °C + 273.15',      fromSub: c => `${c} + 273.15` },
-    rankine:    { toRule: '°C = (°R − 491.67) × 5/9',    toSub: x => `(${x} − 491.67) × 5/9`,      fromRule: '°R = °C × 9/5 + 491.67', fromSub: c => `${c} × 9/5 + 491.67` }
+    celsius: {
+        toRule: '°C = °C (sin cambio)', toSub: x => x.replace(/^\((.*)\)$/, '$1'),
+        toText: 'El valor ya está en °C, así que no hay nada que cambiar.',
+        fromRule: '°C = °C (sin cambio)', fromSub: c => c.replace(/^\((.*)\)$/, '$1'),
+        fromText: 'El destino es °C, así que no hay nada que cambiar.'
+    },
+    fahrenheit: {
+        toRule: '°C = (°F − 32) × 5/9', toSub: x => `(${x} − 32) × 5/9`,
+        toText: 'Primero restamos 32 (el 0 °F no coincide con el 0 °C) y luego escalamos por 5/9, porque 1 °F es más pequeño que 1 °C.',
+        fromRule: '°F = °C × 9/5 + 32', fromSub: c => `${c} × 9/5 + 32`,
+        fromText: 'Hacemos el camino inverso: escalamos por 9/5 y después sumamos 32.'
+    },
+    kelvin: {
+        toRule: '°C = K − 273.15', toSub: x => `${x} − 273.15`,
+        toText: 'El kelvin y el °C tienen el mismo tamaño de grado; solo cambia el punto cero (0 K es el cero absoluto, −273.15 °C). Por eso restamos 273.15.',
+        fromRule: 'K = °C + 273.15', fromSub: c => `${c} + 273.15`,
+        fromText: 'Como el grado mide lo mismo, solo desplazamos el cero: sumamos 273.15.'
+    },
+    rankine: {
+        toRule: '°C = (°R − 491.67) × 5/9', toSub: x => `(${x} − 491.67) × 5/9`,
+        toText: 'Rankine usa el cero absoluto como cero. Restamos 491.67 (el 0 °C expresado en °R) y escalamos por 5/9.',
+        fromRule: '°R = °C × 9/5 + 491.67', fromSub: c => `${c} × 9/5 + 491.67`,
+        fromText: 'Escalamos por 9/5 y sumamos 491.67 para llegar a la escala Rankine.'
+    }
 };
 
 // Reglas textuales y de sustitución para una unidad según su tipo
@@ -416,40 +436,43 @@ function describeUnit(an, sym, baseSym) {
     if (an.type === 'inverse') {
         return {
             inverse: true,
-            toRule: 'Valor base = K ÷ Valor',
-            toSub: x => `${fmtSci(an.k)} ÷ ${x}`,
-            fromRule: 'Resultado = K ÷ Valor base',
-            fromSub: b => `${fmtSci(an.k)} ÷ ${b}`,
+            toRule: 'Valor base = K ÷ Valor', toSub: x => `${fmtSci(an.k)} ÷ ${x}`,
+            toText: 'Esta magnitud es inversa: no se multiplica por un factor, sino que se divide una constante K entre el valor.',
+            fromRule: 'Resultado = K ÷ Valor base', fromSub: b => `${fmtSci(an.k)} ÷ ${b}`,
+            fromText: 'Volvemos a dividir la constante K entre el valor base, porque la relación es inversa.',
             info: `K = ${fmtSci(an.k)} (relación inversa entre ${sym} y ${baseSym})`
         };
     }
     if (an.type === 'affine') {
         return {
-            toRule: 'Valor base = Valor × k + c',
-            toSub: x => `${x} × ${fmtSci(an.k)} + ${wrapNeg(fmtSci(an.off))}`,
-            fromRule: 'Resultado = (Valor base − c) ÷ k',
-            fromSub: b => `(${b} − ${wrapNeg(fmtSci(an.off))}) ÷ ${fmtSci(an.k)}`,
+            toRule: 'Valor base = Valor × k + c', toSub: x => `${x} × ${fmtSci(an.k)} + ${wrapNeg(fmtSci(an.off))}`,
+            toText: 'Escalamos el valor por k y le sumamos el desfase c.',
+            fromRule: 'Resultado = (Valor base − c) ÷ k', fromSub: b => `(${b} − ${wrapNeg(fmtSci(an.off))}) ÷ ${fmtSci(an.k)}`,
+            fromText: 'Quitamos el desfase c y dividimos entre k.',
             info: `k = ${fmtSci(an.k)}, c = ${fmtSci(an.off)}`
         };
     }
     return {
-        toRule: 'Valor base = Valor × f',
-        toSub: x => `${x} × ${fmtSci(an.k)}`,
-        fromRule: 'Resultado = Valor base ÷ f',
-        fromSub: b => `${b} ÷ ${fmtSci(an.k)}`,
-        info: `f: 1 ${sym} = ${fmtSci(an.k)} ${baseSym}`
+        toRule: 'Valor base = Valor × f', toSub: x => `${x} × ${fmtSci(an.k)}`,
+        toText: 'Multiplicamos el valor por el factor f del origen. El factor f indica cuántas unidades base vale 1 unidad de origen.',
+        fromRule: 'Resultado = Valor base ÷ f', fromSub: b => `${b} ÷ ${fmtSci(an.k)}`,
+        fromText: 'Dividimos entre el factor f del destino para saber cuántas unidades de destino caben en ese valor base.',
+        info: `1 ${sym} = ${fmtSci(an.k)} ${baseSym}`
     };
 }
 
-// Construye el desglose metodológico de una conversión
+// Construye el desglose metodológico de una conversión.
+// Cada paso tiene: título, texto explicativo en lenguaje sencillo, filas {k, v} y, opcionalmente, un resultado parcial.
 function buildProcedure(catKey, fromKey, toKey, val) {
     const cat = conversions[catKey];
     const from = cat.units[fromKey], to = cat.units[toKey];
-    const baseUnit = cat.units[Object.keys(cat.units)[0]];
+    const baseKey = Object.keys(cat.units)[0];
+    const baseUnit = cat.units[baseKey];
     const baseSym = unitSymbol(baseUnit), fromSym = unitSymbol(from), toSym = unitSymbol(to);
     const isTemp = catKey === 'temperatura';
     const base = from.toBase(val);
     const result = to.fromBase(base);
+    const valText = fmtSci(val), baseText = formatNumber(base), resultText = formatNumber(result);
     const label = isTemp ? 'Temperatura en °C' : 'Valor base';
 
     let dFrom, dTo, aFrom = null, aTo = null;
@@ -462,59 +485,123 @@ function buildProcedure(catKey, fromKey, toKey, val) {
         dFrom = describeUnit(aFrom, fromSym, baseSym);
         dTo = describeUnit(aTo, toSym, baseSym);
     }
+    const bothLinear = !!(aFrom && aTo && aFrom.type === 'linear' && aTo.type === 'linear');
+    const flow = [
+        { label: 'Valor inicial', main: `${valText} ${fromSym}` },
+        { label: `Unidad base`, main: `${baseText} ${baseSym}` },
+        { label: 'Resultado', main: `${resultText} ${toSym}`, end: true }
+    ];
 
     const steps = [];
 
-    // 1) Fórmula o regla aplicada
-    const rules = [
-        `Paso A (${fromSym} → ${baseSym}):  ${dFrom.toRule}`,
-        `Paso B (${baseSym} → ${toSym}):  ${dTo.fromRule}`
+    // 1) Datos
+    steps.push({
+        title: 'Identifica los datos',
+        text: fromKey === toKey
+            ? 'El origen y el destino son la misma unidad, así que el valor no cambia.'
+            : `Queremos pasar de ${from.name} a ${to.name}. Usamos la unidad base de la categoría como puente: primero vamos del origen a la base y después de la base al destino.`,
+        rows: [
+            { k: 'Valor', v: `${valText} ${fromSym}` },
+            { k: 'Origen', v: from.name },
+            { k: 'Destino', v: to.name },
+            { k: 'Unidad base', v: baseUnit.name }
+        ]
+    });
+
+    if (fromKey === toKey) {
+        steps.push({ title: 'Resultado final', highlight: true, rows: [{ k: 'Respuesta', v: `${valText} ${fromSym} = ${resultText} ${toSym}` }] });
+        return { steps, flow, base, result, baseSym, fromSym, toSym };
+    }
+
+    // 2) Regla
+    const ruleRows = [
+        { k: 'Hacia la base', v: dFrom.toRule },
+        { k: 'Hacia el destino', v: dTo.fromRule }
     ];
-    [...new Set([dFrom.info, dTo.info].filter(Boolean))].forEach(i => rules.push(i));
-    if (aFrom && aTo && aFrom.type === 'linear' && aTo.type === 'linear') {
-        rules.push(`Factor combinado: f_origen ÷ f_destino = ${fmtSci(aFrom.k / aTo.k)}`);
-    }
-    if (fromKey === toKey) rules.push('Origen y destino son la misma unidad: el valor no cambia.');
-    steps.push({ title: 'Fórmula o regla aplicada', lines: rules });
-
-    // 2) Sustitución de los valores ingresados
+    [...new Set([dFrom.info, dTo.info].filter(Boolean))].forEach(i => ruleRows.push({ k: 'Dato', v: i }));
     steps.push({
-        title: 'Sustitución de los valores ingresados',
-        lines: [`${label} = ${dFrom.toSub(wrapNeg(fmtSci(val)))}`]
+        title: 'Elige la regla de conversión',
+        text: isTemp
+            ? 'Las escalas de temperatura tienen puntos cero distintos, así que no basta con multiplicar: además de escalar hay que sumar o restar un desfase.'
+            : (dFrom.inverse || dTo.inverse)
+                ? 'Esta magnitud es inversa, por eso la regla usa una división con una constante K.'
+                : 'Cada unidad se relaciona con la base mediante un factor. Con él hacemos el viaje de ida (origen → base) y el de vuelta (base → destino).',
+        rows: ruleRows
     });
 
-    // 3) Paso intermedio hacia la unidad base
-    const mid = [`${label} = ${formatNumber(base)} ${baseSym}`];
-    if (fromKey === Object.keys(cat.units)[0]) mid.push('El origen ya es la unidad base de la categoría.');
-    else mid.push(`Unidad base de la categoría: ${baseUnit.name}`);
+    // 3) Paso 1: origen → base
+    const fromIsBase = fromKey === baseKey, toIsBase = toKey === baseKey;
+    const step1Rows = [
+        { k: 'Fórmula', v: dFrom.toRule },
+        { k: 'Sustituyo', v: `${label} = ${dFrom.toSub(wrapNeg(valText))}` },
+        { k: 'Calculo', v: `${label} = ${baseText} ${baseSym}` }
+    ];
     if ((dFrom.inverse && val === 0) || (dTo.inverse && base === 0)) {
-        mid.push('Con valor 0 la relación inversa no está definida; la aplicación lo trata como 0.');
+        step1Rows.push({ k: 'Nota', v: 'Con valor 0 la relación inversa no está definida; la aplicación lo trata como 0.' });
     }
-    steps.push({ title: 'Paso intermedio a la unidad base', lines: mid });
-
-    // 4) Resultado final
-    const finalExpr = dTo.fromSub(wrapNeg(formatNumber(base)));
-    const resultText = formatNumber(result);
     steps.push({
-        title: 'Resultado final',
-        highlight: true,
-        lines: [finalExpr === resultText
-            ? `Resultado = ${resultText} ${toSym}`
-            : `Resultado = ${finalExpr} = ${resultText} ${toSym}`]
+        title: `Paso 1: de ${fromSym} a ${baseSym}`,
+        text: fromIsBase && !isTemp ? 'El origen ya es la unidad base: el valor se mantiene (se multiplica por 1).' : dFrom.toText,
+        rows: step1Rows,
+        partial: `${baseText} ${baseSym}`
     });
 
-    return { steps, base, result, baseSym, fromSym, toSym };
+    // 4) Paso 2: base → destino
+    const finalExpr = dTo.fromSub(wrapNeg(baseText));
+    const step2Rows = [{ k: 'Fórmula', v: dTo.fromRule }, { k: 'Sustituyo', v: `Resultado = ${finalExpr}` }];
+    step2Rows.push({ k: 'Calculo', v: `Resultado = ${resultText} ${toSym}` });
+    steps.push({
+        title: `Paso 2: de ${baseSym} a ${toSym}`,
+        text: toIsBase && !isTemp ? 'El destino es la unidad base: dividir entre 1 no cambia el valor.' : dTo.fromText,
+        rows: step2Rows,
+        partial: `${resultText} ${toSym}`
+    });
+
+    // 5) Resultado y comprobación
+    const finalRows = [{ k: 'Respuesta', v: `${valText} ${fromSym} = ${resultText} ${toSym}` }];
+    let checkText = '';
+    if (bothLinear) {
+        const ratio = aFrom.k / aTo.k;
+        finalRows.push({ k: 'Equivalencia', v: `1 ${fromSym} = ${fmtSci(ratio)} ${toSym}` });
+        finalRows.push({ k: 'Atajo', v: `${valText} × ${fmtSci(ratio)} = ${resultText} ${toSym}` });
+        if (ratio > 1) checkText = `Comprobación: ${toSym} es una unidad más pequeña que ${fromSym}, así que el número debe hacerse más grande.`;
+        else if (ratio < 1) checkText = `Comprobación: ${toSym} es una unidad más grande que ${fromSym}, así que el número debe hacerse más pequeño.`;
+        if (val !== 0 && ratio !== 1) {
+            const grew = Math.abs(result) > Math.abs(val);
+            finalRows.push({ k: 'Verificación', v: (grew === (ratio > 1)) ? '✔ El número cambió en el sentido esperado.' : '⚠ Revisa: el sentido del cambio no coincide.' });
+        }
+    } else if (isTemp) {
+        checkText = 'Comprobación: puedes verificar con puntos de referencia que son iguales en todas las escalas.';
+        finalRows.push({ k: 'Referencia', v: 'Agua se congela: 0 °C = 32 °F = 273.15 K = 491.67 °R' });
+        finalRows.push({ k: 'Referencia', v: 'Agua hierve: 100 °C = 212 °F = 373.15 K = 671.67 °R' });
+    } else if (dFrom.inverse || dTo.inverse) {
+        checkText = 'Comprobación: en una relación inversa, si el valor sube, el resultado baja (y al revés).';
+    }
+    steps.push({ title: 'Resultado final', text: checkText, highlight: true, rows: finalRows });
+
+    return { steps, flow, base, result, baseSym, fromSym, toSym };
 }
 
 function renderProcedureHTML(proc) {
-    return '<ol class="space-y-4">' + proc.steps.map((s, i) => `
+    const flow = proc.flow ? `
+        <div class="calc-flow" aria-label="Ruta de la conversión">
+            ${proc.flow.map((n, i) => `
+                ${i ? '<span class="flow-arrow" aria-hidden="true">→</span>' : ''}
+                <div class="flow-node${n.end ? ' is-end' : ''}"><small>${esc(n.label)}</small><b>${esc(n.main)}</b></div>`).join('')}
+        </div>` : '';
+    const list = '<ol class="space-y-5">' + proc.steps.map((s, i) => `
         <li class="flex gap-3">
             <span class="calc-step-num">${i + 1}</span>
             <div class="min-w-0 flex-1">
-                <p class="text-xs font-bold uppercase tracking-wider text-themeText mb-1.5">${esc(s.title)}</p>
-                <div class="formula-box${s.highlight ? ' formula-result' : ''}">${s.lines.map(l => `<div>${esc(l)}</div>`).join('')}</div>
+                <p class="text-xs font-bold uppercase tracking-wider text-themeText mb-1">${esc(s.title)}</p>
+                ${s.text ? `<p class="text-sm text-themeMuted leading-relaxed mb-2">${esc(s.text)}</p>` : ''}
+                <div class="formula-box${s.highlight ? ' formula-result' : ''}">
+                    ${s.rows.map(r => `<div class="formula-row"><span class="formula-key">${esc(r.k)}</span><span class="formula-val">${esc(r.v)}</span></div>`).join('')}
+                </div>
+                ${s.partial ? `<p class="mt-2"><span class="calc-chip">= ${esc(s.partial)}</span></p>` : ''}
             </div>
         </li>`).join('') + '</ol>';
+    return flow + list;
 }
 
 // Memoria de Cálculo del conversor (se actualiza en cada conversión)
@@ -530,13 +617,7 @@ function renderCalcMemory(val) {
     const cat = conversions[currentCategory];
     if (!cat || !cat.units[fromKey] || !cat.units[toKey]) return;
     const proc = buildProcedure(currentCategory, fromKey, toKey, val);
-    body.innerHTML = `
-        <p class="text-sm text-themeMuted mb-4">
-            <span class="font-mono text-themeText">${esc(fmtSci(val))} ${esc(proc.fromSym)}</span>
-            <span class="mx-1">→</span>
-            <span class="font-mono font-bold text-themeAccent">${esc(formatNumber(proc.result))} ${esc(proc.toSym)}</span>
-            <span class="text-xs"> · ${esc(cat.title)}</span>
-        </p>` + renderProcedureHTML(proc);
+    body.innerHTML = renderProcedureHTML(proc);
 }
 
 // ==============================================================
