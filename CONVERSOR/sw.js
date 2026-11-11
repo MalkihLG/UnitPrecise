@@ -1,6 +1,6 @@
 // Subir el número de versión cada vez que cambien los archivos, para que los
 // dispositivos con la PWA instalada descarguen la versión nueva.
-const CACHE_NAME = 'unitprecise-cache-v3';
+const CACHE_NAME = 'unitprecise-cache-v4';
 
 // Archivos que queremos guardar en la memoria del celular
 const urlsToCache = [
